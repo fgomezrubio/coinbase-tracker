@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Coinbase Top Movers</title>
+
+    <!-- CSS externo -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <div class="card">
+        <div class="card-header">
+            <h1>
+                📈 Coinbase Top Movers
+                <span class="badge">24h</span>
+            </h1>
+        </div>
+
+        <div class="card-body">
+            <!-- Filtros -->
+            <form method="post">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="quote_currency">Quote currency</label>
+                        <select name="quote_currency" id="quote_currency" required>
+                            <option value="">-- Select --</option>
+                            {% for q in quotes %}
+                                <option value="{{ q }}" {% if selected_quote == q %}selected{% endif %}>{{ q }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group" style="max-width: 120px;">
+                        <label for="top_n">Top N</label>
+                        <input type="number" name="top_n" id="top_n" value="{{ top_n }}" min="1" max="50">
+                    </div>
+
+                    <div>
+                        <button type="submit">Get Top Movers</button>
+                    </div>
+                </div>
+            </form>
+
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+
+            {% if results %}
+                <p class="subtitle">
+                    Showing top {{ results|length }} movers for
+                    <strong>{{ selected_quote }}</strong>.
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th>Base</th>
+                            <th>Quote</th>
+                            <th>Open (24h)</th>
+                            <th>Last</th>
+                            <th>Change 24h (%)</th>
+                            <th>Trade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in results %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ r.display_name }}</td>
+                                <td>{{ r.base_currency }}</td>
+                                <td>{{ r.quote_currency }}</td>
+
+                                <td>{{ "%.6f"|format(r.open) }}</td>
+                                <td>{{ "%.6f"|format(r.last) }}</td>
+
+                                {% set cls = "positive" if r.change_pct >= 0 else "negative" %}
+                                <td class="{{ cls }}">
+                                    {{ "%.2f"|format(r.change_pct) }}%
+                                </td>
+
+                                <td>
+                                    <a class="trade-btn"
+                                       href="https://www.coinbase.com/advanced-trade/spot/{{ r.product_id }}"
+                                       target="_blank">
+                                        Open
+                                        <span style="font-size: 0.7rem;">↗</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% elif selected_quote %}
+                <p class="subtitle">No results found for this quote currency.</p>
+            {% endif %}
+
+            <div class="footer">
+                <span>Last refresh (server UTC): {{ now }}</span>
+                <span>Source: Coinbase public API · Exchange</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS externo (si aplica) -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>
+
