@@ -12,10 +12,17 @@
 <div class="page-wrapper">
     <div class="card">
         <div class="card-header">
-            <h1>
-                📈 Coinbase Top Movers
-                <span class="badge">24h</span>
-            </h1>
+	   <h1>
+  	  	📈 Coinbase Top Movers
+    		<span class="badge">
+        		{% if frequency == "5m" %} 5m
+        		{% elif frequency == "15m" %} 15m
+        		{% elif frequency == "1h" %} 1h
+        		{% elif frequency == "6h" %} 6h
+        		{% else %} 1d
+        		{% endif %}
+    		</span>
+	   </h1>
         </div>
 
         <div class="card-body">
@@ -37,6 +44,7 @@
                         <input type="number" name="top_n" id="top_n" value="{{ top_n }}" min="1" max="50">
                     </div>
 
+		<!-- NUEVO: filtro de movimiento -->
 		<div class="filter-group">
 			<label>Movement</label>
     			<div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.8rem;">
@@ -58,6 +66,17 @@
     			</div>
 		</div>
 
+		<!-- NUEVO: selector de frecuencia -->
+		<div class="filter-group" style="max-width: 150px;">
+    			<label for="frequency">Frequency</label>
+    			<select name="frequency" id="frequency">
+        			<option value="5m"  {% if frequency == "5m"  %}selected{% endif %}>5 minutes</option>
+        			<option value="15m" {% if frequency == "15m" %}selected{% endif %}>15 minutes</option>
+        			<option value="1h"  {% if frequency == "1h"  %}selected{% endif %}>1 hour</option>
+        			<option value="6h"  {% if frequency == "6h"  %}selected{% endif %}>6 hours</option>
+        			<option value="1d"  {% if frequency == "1d"  %}selected{% endif %}>1 day</option>
+    			</select>
+		</div>
                     <div>
                         <button type="submit">Get Top Movers</button>
                     </div>
@@ -71,7 +90,8 @@
             {% if results %}
                 <p class="subtitle">
                     Showing top {{ results|length }} movers for
-                    <strong>{{ selected_quote }}</strong>.
+                    <strong>{{ selected_quote }}</strong>,
+		    frequency <strong>{{ frequency }}</strong>,
 		    (
         	    {% if movement_filter == "all" %}
             		all movements
@@ -82,7 +102,6 @@
         	    {% endif %}
         	    ).
 		</p>
-
                 <table>
                     <thead>
                         <tr>
