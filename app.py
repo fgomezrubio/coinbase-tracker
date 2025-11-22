@@ -60,23 +60,18 @@ def fetch_24h_stats(product_id):
     except Exception:
         return None
 
-
-def get_top_movers(quote_currency, limit=10, max_products=80):
+def get_top_movers(quote_currency, limit=10, max_products=80, movement_filter="all"):
     """
     Get top 'limit' products with biggest 24h movement for a given quote_currency.
 
-    - quote_currency: filter (e.g., 'USD', 'USDT').
-    - limit: how many top movers to return.
-    - max_products: max number of products to check to avoid too many API calls.
+    movement_filter:
+        - "all"       -> sort by absolute change (current behavior)
+        - "positive"  -> only positive movers, sorted by highest gain
+        - "negative"  -> only negative movers, sorted by biggest loss
     """
     col = get_collection()
 
-    # Filtramos por quote_currency y status "online" (si existe)
     query = {"quote_currency": quote_currency}
-    # Algunos documentos tienen status en 'status'
-    # Puedes ajustar según lo que tengas guardado
-    # query["status"] = "online"
-
     products_cursor = col.find(query).limit(max_products)
 
     movers = []
@@ -100,24 +95,32 @@ def get_top_movers(quote_currency, limit=10, max_products=80):
             "change_pct": stats["change_pct"],
         })
 
-    # Ordenamos por movimiento absoluto (mayor cambio)
-    movers.sort(key=lambda x: abs(x["change_pct"]), reverse=True)
+    # Filtrado según el tipo de movimiento
+    if movement_filter == "positive":
+        movers = [m for m in movers if m["change_pct"] > 0]
+        movers.sort(key=lambda x: x["change_pct"], reverse=True)
+    elif movement_filter == "negative":
+        movers = [m for m in movers if m["change_pct"] < 0]
+        movers.sort(key=lambda x: x["change_pct"])  # más negativo primero
+    else:
+        # all -> comportamiento actual: por movimiento absoluto
+        movers.sort(key=lambda x: abs(x["change_pct"]), reverse=True)
 
-    # Top N
     return movers[:limit]
-
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     quotes = get_distinct_quote_currencies()
     selected_quote = None
     top_n = 10
+    movement_filter = "all"   # nuevo
     results = []
     error = None
 
     if request.method == "POST":
         selected_quote = request.form.get("quote_currency")
         top_n_str = request.form.get("top_n", "10")
+        movement_filter = request.form.get("movement_filter", "all")
 
         try:
             top_n = int(top_n_str)
@@ -129,13 +132,18 @@ def index():
         if not selected_quote:
             error = "Please select a quote currency."
         else:
-            results = get_top_movers(selected_quote, limit=top_n)
+            results = get_top_movers(
+                selected_quote,
+                limit=top_n,
+                movement_filter=movement_filter
+            )
 
     return render_template(
         "index.html",
         quotes=quotes,
         selected_quote=selected_quote,
         top_n=top_n,
+        movement_filter=movement_filter,  # pasar al template
         results=results,
         error=error,
         now=datetime.utcnow(),

@@ -37,6 +37,27 @@
                         <input type="number" name="top_n" id="top_n" value="{{ top_n }}" min="1" max="50">
                     </div>
 
+		<div class="filter-group">
+			<label>Movement</label>
+    			<div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.8rem;">
+        			<label>
+            				<input type="radio" name="movement_filter" value="all"
+                   				{% if movement_filter == "all" %}checked{% endif %}>
+            				All
+        			</label>
+        			<label>
+            				<input type="radio" name="movement_filter" value="positive"
+                   				{% if movement_filter == "positive" %}checked{% endif %}>
+            				Positive
+        			</label>
+        			<label>
+            				<input type="radio" name="movement_filter" value="negative"
+                   				{% if movement_filter == "negative" %}checked{% endif %}>
+            				Negative
+        			</label>
+    			</div>
+		</div>
+
                     <div>
                         <button type="submit">Get Top Movers</button>
                     </div>
@@ -51,7 +72,16 @@
                 <p class="subtitle">
                     Showing top {{ results|length }} movers for
                     <strong>{{ selected_quote }}</strong>.
-                </p>
+		    (
+        	    {% if movement_filter == "all" %}
+            		all movements
+        	    {% elif movement_filter == "positive" %}
+            		positive only
+        	    {% else %}
+            		negative only
+        	    {% endif %}
+        	    ).
+		</p>
 
                 <table>
                     <thead>
