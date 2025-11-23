@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 from pymongo import MongoClient
 import requests
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 FREQUENCIES = {
     "5m":  {"granularity": 300,   "window_minutes": 5},
@@ -122,8 +123,32 @@ def fetch_24h_stats(product_id):
     except Exception:
         return None
 
+def _compute_mover_for_product(p, frequency):
+    """
+    Helper para obtener stats de un producto.
+    Retorna el diccionario listo para movers[], o None si falla.
+    """
+    product_id = p.get("product_id") or p.get("id")
+    if not product_id:
+        return None
+
+    stats = fetch_stats(product_id, frequency=frequency)
+    if not stats:
+        return None
+
+    return {
+        "product_id": product_id,
+        "display_name": p.get("display_name", product_id),
+        "base_currency": p.get("base_currency"),
+        "quote_currency": p.get("quote_currency"),
+        "open": stats["open"],
+        "last": stats["last"],
+        "change_pct": stats["change_pct"],
+    }
+
 def get_top_movers(quote_currency, limit=10, max_products=80,
-                   movement_filter="all", frequency="1d"):
+                   movement_filter="all", frequency="1d",
+                   max_workers=8):
     """
     Get top 'limit' products with biggest movement for a given quote_currency.
 
@@ -134,40 +159,41 @@ def get_top_movers(quote_currency, limit=10, max_products=80,
 
     frequency:
         - "5m", "15m", "1h", "6h", "1d"
+
+    max_workers:
+        - número de hilos en el pool para llamadas HTTP concurrentes
     """
     col = get_collection()
-
     query = {"quote_currency": quote_currency}
-    products_cursor = col.find(query).limit(max_products)
+
+    # leemos los productos en memoria para poder iterar con threads
+    products = list(col.find(query).limit(max_products))
 
     movers = []
 
-    for p in products_cursor:
-        product_id = p.get("product_id") or p.get("id")
-        if not product_id:
-            continue
+    # Pool de threads para hacer requests en paralelo
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(_compute_mover_for_product, p, frequency)
+            for p in products
+        ]
 
-        stats = fetch_stats(product_id, frequency=frequency)
-        if not stats:
-            continue
+        for fut in as_completed(futures):
+            try:
+                result = fut.result()
+                if result:
+                    movers.append(result)
+            except Exception as e:
+                # si alguna llamada truena, no queremos que rompa toda la página
+                print(f"Error computing mover: {e}")
 
-        movers.append({
-            "product_id": product_id,
-            "display_name": p.get("display_name", product_id),
-            "base_currency": p.get("base_currency"),
-            "quote_currency": p.get("quote_currency"),
-            "open": stats["open"],
-            "last": stats["last"],
-            "change_pct": stats["change_pct"],
-        })
-
-    # Filtro según tipo de movimiento
+    # Filtro según tipo de movimiento (igual que antes)
     if movement_filter == "positive":
         movers = [m for m in movers if m["change_pct"] > 0]
         movers.sort(key=lambda x: x["change_pct"], reverse=True)
     elif movement_filter == "negative":
         movers = [m for m in movers if m["change_pct"] < 0]
-        movers.sort(key=lambda x: x["change_pct"])  # más negativo primero
+        movers.sort(key=lambda x: x["change_pct"])
     else:
         movers.sort(key=lambda x: abs(x["change_pct"]), reverse=True)
 
