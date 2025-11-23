@@ -1,23 +1,55 @@
-// main.js
-console.log("Coinbase Top Movers dashboard loaded ✅");
+// static/js/main.js
 
-// Aquí puedes agregar lógica JS futura, por ejemplo:
-// - Auto-refresh cada X segundos
-// - Ordenar columnas en el frontend
-// - Mostrar tooltips, etc.
+const STORAGE_KEY = "coinbase_watchlist";
 
-// Global watchlist
-let watchlist = {};  
-// estructura: 
-// watchlist[product_id] = { initialPrice, addedAt, rowElement }
+// watchlist en memoria
+// estructura: watchlist[productId] = { initialPrice, addedAt: Date, rowElement }
+let watchlist = {};
 
-function addToWatchlist(productId, initialPrice) {
-    if (watchlist[productId]) return; // ya está agregado
+function saveWatchlistToStorage() {
+    const list = Object.entries(watchlist).map(([productId, obj]) => ({
+        productId,
+        initialPrice: obj.initialPrice,
+        addedAt: obj.addedAt.toISOString(),
+    }));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    } catch (e) {
+        console.error("Error saving watchlist to localStorage", e);
+    }
+}
 
-    const addedAt = new Date();
+function loadWatchlistFromStorage() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
 
-    // Crear fila en tabla
+    try {
+        const list = JSON.parse(raw);
+        if (!Array.isArray(list)) return;
+
+        list.forEach(item => {
+            const { productId, initialPrice, addedAt } = item;
+            // recreamos cada fila
+            createWatchlistRow(productId, Number(initialPrice), new Date(addedAt), false);
+        });
+    } catch (e) {
+        console.error("Error loading watchlist from localStorage", e);
+    }
+}
+
+/**
+ * Crea la fila visual y actualiza el objeto watchlist
+ * @param {string} productId
+ * @param {number} initialPrice
+ * @param {Date} addedAt
+ * @param {boolean} persist si true, también guarda en localStorage
+ */
+function createWatchlistRow(productId, initialPrice, addedAt, persist = true) {
+    if (watchlist[productId]) return; // ya existe
+
     const tbody = document.getElementById("watchlist-body");
+    if (!tbody) return;
+
     const row = document.createElement("tr");
     row.id = `row-${productId}`;
 
@@ -34,8 +66,7 @@ function addToWatchlist(productId, initialPrice) {
                Open ↗
             </a>
         </td>
-
-	<td>
+        <td>
             <button class="btn-remove" onclick="removeFromWatchlist('${productId}')">
                 ✖
             </button>
@@ -47,32 +78,52 @@ function addToWatchlist(productId, initialPrice) {
     watchlist[productId] = {
         initialPrice,
         addedAt,
-        rowElement: row
+        rowElement: row,
     };
+
+    if (persist) {
+        saveWatchlistToStorage();
+    }
 }
 
+/**
+ * Llamado desde el botón Monitor en la tabla superior
+ */
+function addToWatchlist(productId, initialPrice) {
+    // initialPrice viene de Jinja como número ({{ r.last }})
+    createWatchlistRow(productId, Number(initialPrice), new Date(), true);
+}
+
+/**
+ * Elimina una fila del watchlist y actualiza storage
+ */
 function removeFromWatchlist(productId) {
     const row = document.getElementById(`row-${productId}`);
     if (row) row.remove();
     delete watchlist[productId];
+    saveWatchlistToStorage();
 }
 
+/**
+ * Refresca precios para todos los elementos del watchlist
+ */
 async function refreshWatchlist() {
-    for (let productId in watchlist) {
+    const entries = Object.entries(watchlist);
+    for (const [productId, obj] of entries) {
         try {
             const res = await fetch(`/api/price/${productId}`);
+            if (!res.ok) continue;
             const data = await res.json();
-
             if (!data.last_price) continue;
 
-            const obj = watchlist[productId];
             const row = obj.rowElement;
+            if (!row) continue;
 
             const lastPriceCell = row.querySelector(".last-price");
             const changeCell = row.querySelector(".change");
             const elapsedCell = row.querySelector(".elapsed");
 
-            const last = data.last_price;
+            const last = Number(data.last_price);
             const change = ((last - obj.initialPrice) / obj.initialPrice) * 100;
 
             // actualizar precio
@@ -81,7 +132,7 @@ async function refreshWatchlist() {
             // actualizar cambio
             changeCell.textContent = change.toFixed(2) + "%";
 
-            // colores:
+            // colores (verde, rojo, negro)
             if (change > 0.0001) {
                 changeCell.style.color = "green";
             } else if (change < -0.0001) {
@@ -90,16 +141,21 @@ async function refreshWatchlist() {
                 changeCell.style.color = "black";
             }
 
-            // calcular tiempo transcurrido
+            // tiempo transcurrido
             const elapsedSec = Math.floor((new Date() - obj.addedAt) / 1000);
             elapsedCell.textContent = elapsedSec + "s";
 
         } catch (err) {
-            console.error("Error refreshing: ", productId);
+            console.error("Error refreshing price for", productId, err);
         }
     }
 }
 
-// refrescar cada 5s
-setInterval(refreshWatchlist, 5000);
+// Inicializar cuando cargue la página
+window.addEventListener("DOMContentLoaded", () => {
+    loadWatchlistFromStorage();
+    // empieza el refresco cada 5s
+    setInterval(refreshWatchlist, 5000);
+    console.log("Realtime watchlist initialized ✅");
+});
 
