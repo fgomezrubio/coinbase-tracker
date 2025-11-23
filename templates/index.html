@@ -109,10 +109,11 @@
                             <th>Product</th>
                             <th>Base</th>
                             <th>Quote</th>
-                            <th>Open (24h)</th>
+                            <th>Open</th>
                             <th>Last</th>
-                            <th>Change 24h (%)</th>
+                            <th>Change {{ frequency }} (%)</th>
                             <th>Trade</th>
+			    <th>Monitor</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -139,6 +140,13 @@
                                         <span style="font-size: 0.7rem;">↗</span>
                                     </a>
                                 </td>
+
+				<td>
+				  <button class="btn-monitor" onclick="addToWatchlist('{{ r.product_id }}', {{ r.last }})">
+						Send to Watchlist
+				  </button>
+				</td>
+
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -151,9 +159,43 @@
                 <span>Last refresh (server UTC): {{ now }}</span>
                 <span>Source: Coinbase public API · Exchange</span>
             </div>
+        </div> <!-- cierre de .card-body (Top Movers) -->
+    </div> <!-- cierre de .card (Top Movers) -->
+
+    <!-- NUEVA CARD: Realtime Watchlist -->
+    <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+            <h1>
+                👀 Realtime Watchlist
+            </h1>
         </div>
-    </div>
-</div>
+
+        <div class="card-body">
+            <p class="subtitle">
+                Select pairs from the Top Movers table to add them here and track live price changes every 5 seconds.
+            </p>
+
+            <table id="watchlist-table">
+                <thead>
+                    <tr>
+                        <th>Pair</th>
+                        <th>Initial Price</th>
+                        <th>Last Price</th>
+                        <th>Change (%)</th>
+                        <th>Added At</th>
+                        <th>Elapsed</th>
+                        <th>Graph</th>
+                        <th>Remove</th>
+                    </tr>
+                </thead>
+                <tbody id="watchlist-body">
+                    <!-- filas generadas por JS -->
+                </tbody>
+            </table>
+        </div>
+    </div> <!-- cierre de .card (Watchlist) -->
+
+</div> <!-- cierre de .page-wrapper -->
 
 <!-- JS externo (si aplica) -->
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>

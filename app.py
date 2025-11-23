@@ -173,6 +173,18 @@ def get_top_movers(quote_currency, limit=10, max_products=80,
 
     return movers[:limit]
 
+@app.route("/api/price/<product_id>")
+def api_price(product_id):
+    stats = fetch_stats(product_id, frequency="5m")  # se usa la función que ya tienes
+    if not stats:
+        return {"error": "No data"}, 404
+    
+    return {
+        "product_id": product_id,
+        "last_price": stats["last"],
+        "time_utc": datetime.utcnow().isoformat() + "Z"
+    }
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     quotes = get_distinct_quote_currencies()

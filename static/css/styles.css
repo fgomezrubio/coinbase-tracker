@@ -24,8 +24,8 @@ body {
 .page-wrapper {
     min-height: 100vh;
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
+    flex-direction: column;   /* <-- ESTA ES LA CLAVE */
+    align-items: center;
     padding: 32px 16px;
 }
 
@@ -184,6 +184,42 @@ tbody tr:hover {
 
 .trade-btn:hover {
     background-color: #020617;
+}
+
+/* Monitor button */
+.btn-monitor {
+    background-color: #2563eb;      /* azul */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: 0.2s ease;
+}
+
+.btn-monitor:hover {
+    background-color: #1e40af;
+    transform: translateY(-2px);
+}
+
+/* Remove button */
+.btn-remove {
+    background-color: #dc2626;      /* rojo */
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: 0.2s ease;
+}
+
+.btn-remove:hover {
+    background-color: #b91c1c;
+    transform: scale(1.1);
 }
 
 .footer {
