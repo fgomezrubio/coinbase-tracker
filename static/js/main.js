@@ -6,6 +6,41 @@ const STORAGE_KEY = "coinbase_watchlist";
 // estructura: watchlist[productId] = { initialPrice, addedAt: Date, rowElement }
 let watchlist = {};
 
+function formatElapsed(totalSeconds) {
+    let seconds = totalSeconds;
+
+    const days = Math.floor(seconds / 86400);
+    seconds -= days * 86400;
+
+    const hours = Math.floor(seconds / 3600);
+    seconds -= hours * 3600;
+
+    const minutes = Math.floor(seconds / 60);
+    seconds -= minutes * 60;
+
+    // Helper para formatear en 2 dígitos
+    const pad = (num) => num.toString().padStart(2, '0');
+
+    // Construcción del texto final
+    if (days > 0) {
+        // Si hay días → mostramos formato: 2d 03h 15m
+        return `${days}d ${pad(hours)}h ${pad(minutes)}m`;
+    } 
+    
+    if (hours > 0) {
+        // Si hay horas → 1h 05m 10s
+        return `${hours}h ${pad(minutes)}m ${pad(seconds)}s`;
+    }
+
+    if (minutes > 0) {
+        // Si hay minutos → 3m 42s
+        return `${minutes}m ${pad(seconds)}s`;
+    }
+
+    // Solo segundos
+    return `${seconds}s`;
+}
+
 function saveWatchlistToStorage() {
     const list = Object.entries(watchlist).map(([productId, obj]) => ({
         productId,
@@ -142,8 +177,12 @@ async function refreshWatchlist() {
             }
 
             // tiempo transcurrido
-            const elapsedSec = Math.floor((new Date() - obj.addedAt) / 1000);
-            elapsedCell.textContent = elapsedSec + "s";
+            // const elapsedSec = Math.floor((new Date() - obj.addedAt) / 1000);
+            // elapsedCell.textContent = elapsedSec + "s";
+
+	    const elapsedSec = Math.floor((new Date() - obj.addedAt) / 1000);
+	    elapsedCell.textContent = formatElapsed(elapsedSec);
+
 
         } catch (err) {
             console.error("Error refreshing price for", productId, err);
