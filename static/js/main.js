@@ -6,6 +6,48 @@ const STORAGE_KEY = "coinbase_watchlist";
 // estructura: watchlist[productId] = { initialPrice, addedAt: Date, rowElement }
 let watchlist = {};
 
+async function addToWatchlistFromMarkets(productId) {
+    // Evitar duplicados
+    if (watchlist[productId]) {
+        console.log("Already in watchlist:", productId);
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/price/${productId}`);
+        if (!res.ok) {
+            console.error("Failed to fetch price for", productId);
+            return;
+        }
+        const data = await res.json();
+        if (!data.last_price) {
+            console.error("Invalid price data for", productId, data);
+            return;
+        }
+
+        const initialPrice = Number(data.last_price);
+        addToWatchlist(productId, initialPrice);
+    } catch (err) {
+        console.error("Error adding from markets:", productId, err);
+    }
+}
+
+function toggleCard(cardId) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    card.classList.toggle("collapsed");
+
+    const btn = card.querySelector(".btn-toggle");
+    if (!btn) return;
+
+    if (card.classList.contains("collapsed")) {
+        btn.textContent = "+";
+    } else {
+        btn.textContent = "−";
+    }
+}
+
 function formatElapsed(totalSeconds) {
     let seconds = totalSeconds;
 

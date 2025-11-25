@@ -3,6 +3,7 @@ from pymongo import MongoClient
 import requests
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
 
 FREQUENCIES = {
     "5m":  {"granularity": 300,   "window_minutes": 5},
@@ -199,6 +200,33 @@ def get_top_movers(quote_currency, limit=10, max_products=80,
 
     return movers[:limit]
 
+def get_online_products_by_quote(quote_currency):
+    """
+    Return all products with given quote_currency and status='online'
+    from MongoDB (no limit).
+    """
+    col = get_collection()
+    query = {
+        "quote_currency": quote_currency,
+        "status": "online"
+    }
+
+    cursor = col.find(query).sort("base_currency", 1)
+
+    products = []
+    for p in cursor:
+        product_id = p.get("product_id") or p.get("id")
+        if not product_id:
+            continue
+        products.append({
+            "product_id": product_id,
+            "display_name": p.get("display_name") or f"{p.get('base_currency')}-{p.get('quote_currency')}",
+            "base_currency": p.get("base_currency"),
+            "quote_currency": p.get("quote_currency"),
+            "status": p.get("status"),
+        })
+    return products
+
 @app.route("/api/price/<product_id>")
 def api_price(product_id):
     stats = fetch_stats(product_id, frequency="5m")  # se usa la función que ya tienes
@@ -217,32 +245,75 @@ def index():
     selected_quote = None
     top_n = 10
     movement_filter = "all"
-    frequency = "1d"  # default 1 day
+    frequency = "1d"
     results = []
     error = None
 
+    # Para la card de Available Markets
+    markets_quote_currency = None
+    markets_products = []
+
     if request.method == "POST":
-        selected_quote = request.form.get("quote_currency")
-        top_n_str = request.form.get("top_n", "10")
-        movement_filter = request.form.get("movement_filter", "all")
-        frequency = request.form.get("frequency", "1d")
+        form_id = request.form.get("form_id", "top_movers")
 
-        try:
-            top_n = int(top_n_str)
-            if top_n <= 0:
+        # -----------------------------
+        # FORMULARIO 1: TOP MOVERS
+        # -----------------------------
+        if form_id == "top_movers":
+            selected_quote = request.form.get("quote_currency")
+            top_n_str = request.form.get("top_n", "10")
+            movement_filter = request.form.get("movement_filter", "all")
+            frequency = request.form.get("frequency", "1d")
+
+            try:
+                top_n = int(top_n_str)
+                if top_n <= 0:
+                    top_n = 10
+            except ValueError:
                 top_n = 10
-        except ValueError:
-            top_n = 10
 
-        if not selected_quote:
-            error = "Please select a quote currency."
-        else:
-            results = get_top_movers(
-                selected_quote,
-                limit=top_n,
-                movement_filter=movement_filter,
-                frequency=frequency,
-            )
+            if not selected_quote:
+                error = "Please select a quote currency."
+            else:
+                results = get_top_movers(
+                    selected_quote,
+                    limit=top_n,
+                    movement_filter=movement_filter,
+                    frequency=frequency,
+                )
+
+        # ----------------------------------------------
+        # FORMULARIO 2: AVAILABLE MARKETS (NO BORRAR TOP MOVERS)
+        # ----------------------------------------------
+        elif form_id == "markets":
+            markets_quote_currency = request.form.get("markets_quote_currency")
+
+            # 1) Recuperamos snapshot de Top Movers (sin recalcular)
+            snapshot_str = request.form.get("top_movers_snapshot")
+            if snapshot_str:
+                try:
+                    results = json.loads(snapshot_str)
+                except json.JSONDecodeError:
+                    results = []
+
+            # 2) Recuperamos filtros de Top Movers solo para reimprimirlos
+            selected_quote = request.form.get("selected_quote") or None
+            top_n_str = request.form.get("top_n", "10")
+            movement_filter = request.form.get("movement_filter", "all")
+            frequency = request.form.get("frequency", "1d")
+
+            try:
+                top_n = int(top_n_str)
+                if top_n <= 0:
+                    top_n = 10
+            except ValueError:
+                top_n = 10
+
+            # 3) Cargar la lista de markets para esa quote
+            if not markets_quote_currency:
+                error = "Please select a quote currency for markets."
+            else:
+                markets_products = get_online_products_by_quote(markets_quote_currency)
 
     return render_template(
         "index.html",
@@ -250,12 +321,13 @@ def index():
         selected_quote=selected_quote,
         top_n=top_n,
         movement_filter=movement_filter,
-        frequency=frequency,  # nuevo
+        frequency=frequency,
         results=results,
         error=error,
         now=datetime.utcnow(),
+        markets_quote_currency=markets_quote_currency,
+        markets_products=markets_products,
     )
-
 
 if __name__ == "__main__":
     # Para desarrollo; en producción usar gunicorn/uWSGI

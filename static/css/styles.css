@@ -65,6 +65,47 @@ body {
     padding: 20px;
 }
 
+.markets-list {
+    max-height: 260px;           /* alto máximo antes de que salga el scroll */
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    background-color: #f9fafb;
+}
+
+.market-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e7eb;
+    gap: 12px;
+}
+
+.market-item:last-child {
+    border-bottom: none;
+}
+
+.market-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.market-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.market-sub {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.market-actions {
+    flex-shrink: 0;
+}
+
 .filter-row {
     display: flex;
     flex-wrap: wrap;
@@ -83,6 +124,36 @@ body {
 .filter-group label {
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+.card-header.card-header-collapsible {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-toggle {
+    background-color: rgba(15, 23, 42, 0.25);
+    color: white;
+    border: none;
+    border-radius: 999px;
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s ease;
+}
+
+.btn-toggle:hover {
+    background-color: rgba(15, 23, 42, 0.45);
+}
+
+/* Cuando la card está colapsada, ocultamos solo el cuerpo */
+.card.collapsed .card-body {
+    display: none;
 }
 
 select,

@@ -28,6 +28,19 @@
         <div class="card-body">
             <!-- Filtros -->
             <form method="post">
+		<input type="hidden" name="form_id" value="top_movers">
+
+        <!-- Snapshot para NO recalcular Top Movers -->
+        {% if results %}
+            <input type="hidden" name="top_movers_snapshot" value='{{ results | tojson }}'>
+        {% endif %}
+
+        <!-- Estado actual de los filtros de Top Movers -->
+        <input type="hidden" name="selected_quote" value="{{ selected_quote or '' }}">
+        <input type="hidden" name="top_n" value="{{ top_n }}">
+        <input type="hidden" name="movement_filter" value="{{ movement_filter }}">
+        <input type="hidden" name="frequency" value="{{ frequency }}">
+
                 <div class="filter-row">
                     <div class="filter-group">
                         <label for="quote_currency">Quote currency</label>
@@ -161,6 +174,95 @@
             </div>
         </div> <!-- cierre de .card-body (Top Movers) -->
     </div> <!-- cierre de .card (Top Movers) -->
+
+
+<!-- ========================= -->
+<!--   CARD 2: AVAILABLE MARKETS -->
+<!-- ========================= -->
+<!-- CARD 2: AVAILABLE MARKETS -->
+<div class="card" id="available-markets-card" style="margin-top: 24px;">
+    <div class="card-header card-header-collapsible">
+        <h1>
+            📚 Available Markets
+        </h1>
+        <button type="button" class="btn-toggle" onclick="toggleCard('available-markets-card')">
+            −
+        </button>
+    </div>
+
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="form_id" value="markets">
+
+            <!-- ✅ NUEVO: snapshot de los Top Movers para NO recalcular ni perderlos -->
+            {% if results %}
+                <input type="hidden" name="top_movers_snapshot" value='{{ results | tojson }}'>
+            {% endif %}
+
+            <!-- ✅ NUEVO: estado actual de los filtros de Top Movers -->
+            <input type="hidden" name="selected_quote" value="{{ selected_quote or '' }}">
+            <input type="hidden" name="top_n" value="{{ top_n }}">
+            <input type="hidden" name="movement_filter" value="{{ movement_filter }}">
+            <input type="hidden" name="frequency" value="{{ frequency }}">
+
+
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="markets_quote_currency">Quote currency</label>
+                    <select name="markets_quote_currency" id="markets_quote_currency" required>
+                        <option value="">-- Select --</option>
+                        {% for q in quotes %}
+                            <option value="{{ q }}" {% if markets_quote_currency == q %}selected{% endif %}>{{ q }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <button type="submit">Get Markets</button>
+                </div>
+            </div>
+        </form>
+
+        {% if markets_products %}
+            <p class="subtitle">
+                Select a pair to add it to the realtime watchlist.  
+                Showing <strong>{{ markets_products|length }}</strong> online markets for
+                <strong>{{ markets_quote_currency }}</strong>.
+            </p>
+	    <!-- LISTA SCROLL -->
+            <div class="markets-list">
+                {% for p in markets_products %}
+                    <div class="market-item">
+                        <div class="market-info">
+                            <div class="market-name">
+                                {{ p.display_name }}
+                            </div>
+                            <div class="market-sub">
+                                {{ p.base_currency }} / {{ p.quote_currency }}
+                                · status: {{ p.status }}
+                            </div>
+                        </div>
+                        <div class="market-actions">
+                            <button
+                                type="button"
+                                class="btn-monitor"
+                                onclick="addToWatchlistFromMarkets('{{ p.product_id }}')">
+                                Monitor
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% elif markets_quote_currency %}
+            <p class="subtitle">
+                No online markets found for <strong>{{ markets_quote_currency }}</strong>.
+            </p>
+        {% endif %}
+    </div>
+</div> <!-- cierre de .card (Available Markets) -->
+
+
+
 
     <!-- NUEVA CARD: Realtime Watchlist -->
     <div class="card" style="margin-top: 24px;">
