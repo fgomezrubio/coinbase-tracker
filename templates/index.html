@@ -45,7 +45,10 @@
         <!-- Estado actual de los filtros de Top Movers -->
         <input type="hidden" name="selected_quote" value="{{ selected_quote or '' }}">
         <input type="hidden" name="top_n" value="{{ top_n }}">
-        <input type="hidden" name="movement_filter" value="{{ movement_filter }}">
+        
+	<!-- ❌ AQUÍ quitamos el hidden movement_filter -->
+        <!-- ✅ Radios serán la única fuente de movement_filter -->
+	<!-- input type="hidden" name="movement_filter" value="{{ movement_filter }}" -->
         <!-- OJO: aquí ya NO ponemos hidden frequency -->
         <!-- input type="hidden" name="frequency" value="{{ frequency }}" -->
 
