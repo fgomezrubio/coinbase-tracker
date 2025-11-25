@@ -10,19 +10,26 @@
 <body>
 
 <div class="page-wrapper">
-    <div class="card">
-        <div class="card-header">
-	   <h1>
-  	  	📈 Coinbase Top Movers
-    		<span class="badge">
-        		{% if frequency == "5m" %} 5m
-        		{% elif frequency == "15m" %} 15m
-        		{% elif frequency == "1h" %} 1h
-        		{% elif frequency == "6h" %} 6h
-        		{% else %} 1d
-        		{% endif %}
-    		</span>
-	   </h1>
+    <div class="card" id="top-movers-card">
+    <div class="card-header card-header-collapsible">
+    	    <h1>
+      	  	 📈 Coinbase Top Movers
+        		<span class="badge">
+            		{% if frequency == "5m" %} 5m
+            		{% elif frequency == "15m" %} 15m
+            		{% elif frequency == "1h" %} 1h
+            		{% elif frequency == "6h" %} 6h
+            		{% else %} 1d
+            		{% endif %}
+        		</span>
+    	    </h1>
+ <!-- MISMA LÓGICA QUE AVAILABLE MARKETS -->
+    <button 
+      type="button" 
+      class="btn-toggle" 
+      onclick="toggleCard('top-movers-card')">
+      −
+    </button>
         </div>
 
         <div class="card-body">
@@ -39,7 +46,8 @@
         <input type="hidden" name="selected_quote" value="{{ selected_quote or '' }}">
         <input type="hidden" name="top_n" value="{{ top_n }}">
         <input type="hidden" name="movement_filter" value="{{ movement_filter }}">
-        <input type="hidden" name="frequency" value="{{ frequency }}">
+        <!-- OJO: aquí ya NO ponemos hidden frequency -->
+        <!-- input type="hidden" name="frequency" value="{{ frequency }}" -->
 
                 <div class="filter-row">
                     <div class="filter-group">
@@ -126,7 +134,7 @@
                             <th>Last</th>
                             <th>Change {{ frequency }} (%)</th>
                             <th>Trade</th>
-			    <th>Monitor</th>
+			                <th>Monitor</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -184,6 +192,9 @@
     <div class="card-header card-header-collapsible">
         <h1>
             📚 Available Markets
+            {% if markets_quote_currency %}
+                <span class="badge">{{ markets_quote_currency }}</span>
+            {% endif %}
         </h1>
         <button type="button" class="btn-toggle" onclick="toggleCard('available-markets-card')">
             −
@@ -265,11 +276,18 @@
 
 
     <!-- NUEVA CARD: Realtime Watchlist -->
-    <div class="card" style="margin-top: 24px;">
-        <div class="card-header">
-            <h1>
+    <div class="card" id="realtime-watchlist-card" style="margin-top: 24px;">
+        <div class="card-header card-header-collapsible">
+             <h1>
                 👀 Realtime Watchlist
             </h1>
+            <!-- MISMO PATRÓN QUE LAS OTRAS CARDS -->
+            <button 
+                type="button" 
+                class="btn-toggle" 
+                onclick="toggleCard('realtime-watchlist-card')">
+                −
+            </button>
         </div>
 
         <div class="card-body">

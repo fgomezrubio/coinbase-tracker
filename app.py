@@ -315,6 +315,13 @@ def index():
             else:
                 markets_products = get_online_products_by_quote(markets_quote_currency)
 
+    print(
+        "DEBUG >>>",
+        "frequency:", frequency,
+        "| selected_quote (TopMovers):", selected_quote,
+        "| markets_quote_currency (Available):", markets_quote_currency
+    )
+
     return render_template(
         "index.html",
         quotes=quotes,
