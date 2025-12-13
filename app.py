@@ -4,6 +4,10 @@ import requests
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import time  # <-- agrega esto
+
+RSI_CACHE = {}  # key -> {"ts": epoch, "payload": dict}
+RSI_CACHE_TTL = 10  # seconds
 
 FREQUENCIES = {
     "5m":  {"granularity": 300,   "window_minutes": 5},
@@ -76,6 +80,83 @@ def fetch_stats(product_id, frequency="1d"):
         }
     except Exception:
         return None
+
+def fetch_closes(product_id, frequency="15m", periods=100):
+    """
+    Fetch closing prices from Coinbase candles for RSI/EMA/etc.
+
+    - frequency: "5m", "15m", "1h", "6h", "1d"
+    - periods: how many candles back we want (approx; based on time window)
+    Returns: list[float] closes sorted from oldest -> latest, or None
+    """
+    config = FREQUENCIES.get(frequency)
+    if not config:
+        return None
+
+    granularity = config["granularity"]
+
+    end = datetime.utcnow()
+    # pedimos una ventana suficientemente grande para obtener 'periods' velas
+    start = end - timedelta(seconds=granularity * periods)
+
+    params = {
+        "granularity": granularity,
+        "start": start.isoformat() + "Z",
+        "end": end.isoformat() + "Z",
+    }
+
+    url = COINBASE_CANDLES_URL.format(product_id=product_id)
+
+    try:
+        resp = requests.get(url, params=params, timeout=5)
+        if resp.status_code != 200:
+            return None
+
+        candles = resp.json()
+        if not candles:
+            return None
+
+        # Coinbase devuelve más reciente primero, lo invertimos
+        candles = list(reversed(candles))
+
+        closes = []
+        for c in candles:
+            # Formato: [time, low, high, open, close, volume]
+            closes.append(float(c[4]))
+
+        return closes
+    except Exception:
+        return None
+
+def compute_rsi(closes, period=14):
+    """
+    RSI with Wilder smoothing.
+    closes: list of floats ordered oldest -> latest
+    Returns: float RSI or None
+    """
+    if not closes or len(closes) < period + 1:
+        return None
+
+    # Cambios entre closes
+    deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+    gains = [max(d, 0.0) for d in deltas]
+    losses = [max(-d, 0.0) for d in deltas]
+
+    # Promedios iniciales (simple) para los primeros 'period'
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+
+    # Wilder smoothing para el resto
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+
+    if avg_loss == 0:
+        return 100.0  # sin pérdidas -> RSI máximo
+
+    rs = avg_gain / avg_loss
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    return rsi
 
 def get_collection():
     """Return MongoDB collection for products."""
@@ -238,7 +319,49 @@ def api_price(product_id):
         "last_price": stats["last"],
         "time_utc": datetime.utcnow().isoformat() + "Z"
     }
+    
+@app.route("/api/rsi/<product_id>")
+def api_rsi(product_id):
+    # defaults
+    frequency = request.args.get("frequency", "15m")
+    period_str = request.args.get("period", "14")
 
+    try:
+        period = int(period_str)
+        if period <= 1:
+            period = 14
+    except ValueError:
+        period = 14
+
+    # cache (ya con frequency/period definidos)
+    cache_key = f"{product_id}:{frequency}:{period}"
+    now = time.time()
+
+    cached = RSI_CACHE.get(cache_key)
+    if cached and (now - cached["ts"] < RSI_CACHE_TTL):
+        return cached["payload"]
+
+    periods = max(100, period * 10)
+    closes = fetch_closes(product_id, frequency=frequency, periods=periods)
+
+    if not closes:
+        return {"error": "No candles"}, 404
+
+    rsi = compute_rsi(closes, period=period)
+    if rsi is None:
+        return {"error": "Not enough data"}, 404
+
+    payload = {
+        "product_id": product_id,
+        "frequency": frequency,
+        "period": period,
+        "rsi": round(rsi, 2),
+        "time_utc": datetime.utcnow().isoformat() + "Z"
+    }
+
+    RSI_CACHE[cache_key] = {"ts": now, "payload": payload}
+    return payload
+    
 @app.route("/", methods=["GET", "POST"])
 def index():
     quotes = get_distinct_quote_currencies()
